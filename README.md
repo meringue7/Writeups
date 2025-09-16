@@ -1,2 +1,2 @@
 # Writeups
-Write-ups and notes for Hack The Box labs and CTPS certification side quest.
+Write-ups uniquement en FR des différents labs et CTFs que j'ai pu effectuer.
