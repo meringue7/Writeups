@@ -131,7 +131,7 @@ I used `bloodhound.py` to dumps all ACLs of
 
 Let's check with `Bloodhound` the attacks path I have from `svc-alfresco`.
 
-
+<img width="1949" height="1098" alt="image" src="https://github.com/user-attachments/assets/90f4d3c7-e13f-4db6-a4d6-f93198bb5524" />
 
 
 
