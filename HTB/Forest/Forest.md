@@ -17,12 +17,9 @@ This group has the `DCSync` ACL over the domain. So I performed a DCSync attack 
 I began to enumerate services on the host with the `nmap` tool.
 
 #### Nmap
-```
+```bash
 # nmap -sV -T 4 -p- 10.10.10.161
-Starting Nmap 7.93 ( https://nmap.org ) at 2025-09-17 13:03 CEST
-Nmap scan report for 10.10.10.161
-Host is up (0.021s latency).
-Not shown: 65511 closed tcp ports (reset)
+
 PORT      STATE SERVICE      VERSION
 53/tcp    open  domain       Simple DNS Plus
 88/tcp    open  kerberos-sec Microsoft Windows Kerberos (server time: 2025-09-17 11:08:58Z)
@@ -50,3 +47,5 @@ PORT      STATE SERVICE      VERSION
 49831/tcp open  msrpc        Microsoft Windows RPC
 Service Info: Host: FOREST; OS: Windows; CPE: cpe:/o:microsoft:windows
 ```
+
+
