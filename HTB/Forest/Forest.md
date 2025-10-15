@@ -21,25 +21,35 @@ I began to enumerate services on the host with the `nmap` tool.
 
 PORT      STATE SERVICE      VERSION
 25/tcp    open  smtp-proxy   Avast! anti-virus smtp proxy (cannot connect to 10.129.62.73)
-|_smtp-commands: SMTP EHLO nmap.scanme.org: failed to receive data: connection closed
+|_smtp-commands: SMTP EHLO htb.local: failed to receive data: connection closed
 53/tcp    open  domain       Simple DNS Plus
-88/tcp    open  kerberos-sec Microsoft Windows Kerberos (server time: 2025-10-15 09:56:11Z)
+88/tcp    open  kerberos-sec Microsoft Windows Kerberos (server time: 2025-10-15 12:44:26Z)
 110/tcp   open  pop3-proxy   Avast! anti-virus pop3 proxy (cannot connect to 10.129.62.73)
 135/tcp   open  msrpc        Microsoft Windows RPC
 139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
 143/tcp   open  imap-proxy   Avast! anti-virus IMAP proxy (cannot connect to 10.129.62.73)
 |_imap-capabilities: CAPABILITY
+389/tcp   open  ldap         Microsoft Windows Active Directory LDAP (Domain: htb.local, Site: Default-First-Site-Name)
 445/tcp   open  microsoft-ds Windows Server 2016 Standard 14393 microsoft-ds (workgroup: HTB)
+465/tcp   open  tcpwrapped
+|_smtp-commands: Couldn't establish connection on port 465
 587/tcp   open  smtp-proxy   Avast! anti-virus smtp proxy (cannot connect to 10.129.62.73)
-|_smtp-commands: SMTP EHLO nmap.scanme.org: failed to receive data: connection closed
+|_smtp-commands: SMTP EHLO htb.local: failed to receive data: connection closed
+593/tcp   open  ncacn_http   Microsoft Windows RPC over HTTP 1.0
 993/tcp   open  tcpwrapped
 995/tcp   open  tcpwrapped
-49664/tcp open  unknown
-49666/tcp open  unknown
-49667/tcp open  unknown
-49670/tcp open  unknown
-49676/tcp open  ncacn_http   Microsoft Windows RPC over HTTP 1.0
-49996/tcp open  unknown
+5985/tcp  open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+47001/tcp open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc        Microsoft Windows RPC
+49665/tcp open  msrpc        Microsoft Windows RPC
+49667/tcp open  msrpc        Microsoft Windows RPC
+49681/tcp open  msrpc        Microsoft Windows RPC
+49698/tcp open  msrpc        Microsoft Windows RPC
+49996/tcp open  msrpc        Microsoft Windows RPC
 Service Info: Host: FOREST; OS: Windows; CPE: cpe:/o:microsoft:windows
 
 Host script results:
