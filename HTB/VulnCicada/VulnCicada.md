@@ -144,11 +144,11 @@ drwxrwxrwx 2 nobody nogroup 64 Sep 13  2024 Shirley.West
 
 There is a picture in the Administrator folder.
 
-![[Administrator.png.png]]
+![](img/Administrator.png)
 
 Also in the Rosie.Powell's folder.
 
-![[Marketing.png.png]]
+![](img/Marketing.png)
 
 It look likes Rosie can't remember her password. 
 I try this password with the `rosie.powell` account. 
