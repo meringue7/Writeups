@@ -93,7 +93,7 @@ I harvest the domain's ACLs with `bloodhound-python` using the `levi.james` acco
 # # bloodhound.py --zip -c All -u 'levi.james' -p 'KingofAkron2025!' -dc DC.puppy.htb -d puppy.htb -ns 10.129.232.75
 ```
 
-`levi.james` is a member of the `HR` group which has the `GenericWright` privilege on the `Developers` group.
+`levi.james` is a member of the `HR` group which has the `GenericWrite` privilege on the `Developers` group.
 
 ![](img/levi.james.png)
 
@@ -201,11 +201,11 @@ The scan revealed only one valid account:
 
 # Changing `adam.silver`'s password
 
-`ant edwards`, through the `Senior Devs` group, hash the `GenericAll` right over `adam.silver`.
+`ant.edwards`, through the `Senior Devs` group, has the `GenericAll` right over `adam.silver`.
 
 ![](img/senior_devs.png)
 
-With this privilege, I can change `adam.silver`'s password wtihout knowing is current password.
+With this privilege, I can change `adam.silver`'s password without knowing is current password.
 
 ```bash
 # net rpc password adam.silver Bagu3tte -U PUPPY.HTB/ant.edwards%Antman2025! -S 10.10.11.70  
