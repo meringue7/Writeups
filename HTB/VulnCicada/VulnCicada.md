@@ -2,6 +2,8 @@
   <img src="img/Badge.png" alt="Description de l'image" width="300"/>
 </p>
 
+# Introduction
+
 **Vulncicada** is a medium-rated Active Directory machine from **xct** on the **Vulnlab** platform, designed to model a realistic domain compromise scenario. This write-up details the full attack path from a black-box perspective.
 
 The initial foothold is gained from a password found in a public NFS share. This access is then leveraged to exploit a critical **ESC8** vulnerability in Active Directory Certificate Services (AD CS). The final compromise is achieved through a **Kerberos relay attack** targeting the insecure HTTP certificate web enrollment interface, leading to a complete takeover of the Domain Controller.
