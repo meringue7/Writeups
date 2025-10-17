@@ -94,7 +94,7 @@ I harvest the domain's ACLs with `bloodhound-python` using the `levi.james` acco
 
 `levi.james` is member of the `HR` group which hash `GenericWright` privilege on the `Developpers` group.
 
-![[levi.james.png]]
+![](img/levi.james.png)
 
 With this right, I can add `levi.james` to the `Developpers` group.
 
@@ -147,7 +147,6 @@ I connect in and find an interesting `recovery.kdbx` file. I download it.
 
 # Cracking the kdbx file to discover new credentials.
 
-
 This is a password protected keepass file.
 I extract his hash and try to crack it with `john`.
 
@@ -173,7 +172,7 @@ The hash is cracked:
 `liverpool`
 I open it and find several credentials.
 
-![[keepass.png]]
+![](img/keepass.png)
 
 I find them account usernam and set a list. Samuel and Steeve does now exist in the domain.
 
@@ -202,7 +201,7 @@ Only the `ant.edwards` credentials worked:
 
 `ant edwards`, thourgh the `Senior Devs` group, hash the `GenericAll` right over `adam.silver`.
 
-![[senior devs.png]]
+![](img/senior_devs.png)
 
 With this privilege, I can change `adam.silver`'s password wtihout knowing is current password.
 
@@ -237,7 +236,7 @@ SMB         10.129.232.75   445    DC               [+] PUPPY.HTB\adam.silver:Ba
 
 `adam.silver` can `PSRemote` in on the DC
 
-![[adam.silver.png]]
+![](img/adam.silver.png)
 
 I connect with `evil-winrm`.
 
@@ -255,10 +254,7 @@ There is a Backups folder in `c:\`.
 ```bash
 *Evil-WinRM* PS C:\> dir
 
-
     Directory: C:\
-
-
 Mode                 LastWriteTime         Length Name
 ----                 -------------         ------ ----
 d-----          5/9/2025  10:48 AM                Backups
@@ -276,9 +272,7 @@ This zip file is interesting.
 ```bash
 *Evil-WinRM* PS C:\Backups> dir
 
-
     Directory: C:\Backups
-
 
 Mode                 LastWriteTime         Length Name
 ----                 -------------         ------ ----
@@ -297,7 +291,7 @@ Info: Downloading C:/Backups/site-backup-2024-12-30.zip to site-backup-2024-12-3
 Info: Download successful!
 ```
 
-After unziping it, I find new credentials in a xmlf file.
+After unziping it, I find new credentials in a xml file.
 
 ```xml
 # cat nms-auth-config.xml.bak
