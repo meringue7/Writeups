@@ -1,5 +1,3 @@
-# Introduction
-
 <p align="center">
   <img src="img/Badge.png" alt="Description de l'image" width="300"/>
 </p>
