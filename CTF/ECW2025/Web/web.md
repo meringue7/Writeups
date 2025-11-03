@@ -62,11 +62,11 @@ We test this hypothesis by injecting a basic XSS payload:
 The initial alert(1) payload executed successfully, confirming the XSS vulnerability.
 The next objective is to steal the session cookie of an elevated user, presumably an admin. We noted that the chat relies on WebSockets for communication. This provides a convenient exfiltration path: we can use the existing `socket.send()` function to send the cookie data directly back into the chat, where we can see it.
 
-We inject the following payload:"
+We inject the following payload:
 `<img src=x onerror=socket.send(document.cookie)>`
 
 This payload will trigger when loaded by any user (hopefully an admin), sending their `document.cookie` as a new message.
-We submit the payload and wait. Sure enough, a new message appears in the chat a few moments later, containing the admin's cookie."
+We submit the payload and wait. Sure enough, a new message appears in the chat a few moments later, containing the admin's cookie.
 
 ![](img/S2-6.png)
 
@@ -84,7 +84,7 @@ In the "View Logs" menu, we find this interesting log:
 ![](img/S3-2.png)
 
 Further exploration of the admin panel reveals a `/admin/notes.txt` file.
-This file contains an interesting snippet: the source code for `user.php`:"
+This file contains an interesting snippet: the source code for `user.php`:
 
 ```php
 <?php
