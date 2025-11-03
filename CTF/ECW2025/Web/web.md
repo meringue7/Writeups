@@ -1,16 +1,18 @@
+# Oui,Key Leaks
 
 <p align="center">
   <img src="img/OuiKeyLeaks.png" alt="Description de l'image" width="300"/>
 </p>
 
 
-# Scenario
+## Scenario
 
 *OuiKeyLeaks have been seized for publishing a bad article about drones! 
 Out of curiosity, can you help us pentesting this website ? Try retrieving the admin's password hash.  
 Spoiler : It's going to take some escalation !  
 Have fun.*
-# Step 1
+
+## Step 1
 
 The challenge gave me a domain and port to connect to the challenge.
 After connecting to the website I see  this page:
@@ -34,7 +36,7 @@ I update the page, and the message has changed:
 
 ![](img/S1-4.png)
 
-# Step 2
+## Step 2
 
 On the next page, I see that I need another cookie session to go to the admin page.
 
@@ -72,7 +74,7 @@ I wait a little and get the special cookie!
 `guid:51af8760-3cbf-4344-bcba-7f142d3157e7`
 I set the cookie and connect to the admin page.
 
-# Step 3
+## Step 3
 
 I am connected to the admin panel:
 
