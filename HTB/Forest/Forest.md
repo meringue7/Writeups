@@ -135,7 +135,7 @@ The hash is cracked! I have my first domain credential:
 I used **bloodhound-python** to dump all ACLs of the domain.
 
 ```bash
-# # bloodhound.py --zip -c All -u 'svc-alfresco' -p 's3rvice' -dc FOREST.htb.local -d htb.local -ns 10.129.62.73
+# bloodhound.py --zip -c All -u 'svc-alfresco' -p 's3rvice' -dc FOREST.htb.local -d htb.local -ns 10.129.62.73
 ```
 
 Let's check the attacks paths I have from `svc-alfresco` with `Bloodhound`.
