@@ -149,12 +149,13 @@ More importantly, I see that the `Account Operators` group holds `GenericAll` pr
 ![](img/exchangeWindowsPermissions.png)
 
 This group has the `WriteDacl` over the `htb.local` domain!
-The path forward is clear: I'll create a new user and add it to the `Exchange Windows Permissions` group. After that, I'll add the DCSync ACL to my new user over `htb.local` domain.
+The path forward is clear: As `svc-alfresco` is a part of `Account Operators`, I'll create a new user and add it to the `Exchange Windows Permissions` group. After that, I'll add the DCSync ACL to my new user over `htb.local` domain.
 Finally, I'll perform a DCSync attack to recover the `Administrator` hash to compromise the domain.
+I use the `Bloody-AD` tool for all these steps.
 
 ## Creating a new user
 
-I use the `Bloody-AD` tool for all these steps.
+As `svc-alfresco` is a part of the `Account Operators`,  
 
 ```bash
 # bloodyAD --host "FOREST.htb.local" -d "htb.local" -u "svc-alfresco" -p "s3rvice" add user m3ringue 'Bagu3tte!'
